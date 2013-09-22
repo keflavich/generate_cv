@@ -7,6 +7,7 @@ import os
 import codecs
 
 def get_dev_key():
+    """ A convenience function for accessing a system-wide ADS Developer's Key """
 
     ads_dev_key_filename = os.path.abspath(os.path.expanduser('~/.ads/dev_key'))
 
@@ -34,20 +35,34 @@ def request_author_data(author='ginsburg, a'):
     return J
 
 
-htmlfmtstr = u'''                <li><a class="norm" href="http://adsabs.harvard.edu/abs/{identifier}">{creator}</a> {month}, <b>{year}</b> {journal}
-                <br>&nbsp;&nbsp;&nbsp;{title}'''
+htmlfmtstr = (u'                '
+              u'<li><a class="norm" href="http://adsabs.harvard.edu/abs/{adsbibid}">{creator}</a>'
+              u' {month}, <b>{year}</b> {journal}\n'
+              u'                <br>&nbsp;&nbsp;&nbsp;{titlestring}')
 
-def wrangle(data):
-    #date = dateutil.parser.parse(data['pubdate']) 
-    data['month'] = data['pubdate'][5:7] # date.month
-    #data['year'] = date.year
-    data['identifier'] = data['identifier'][0] if isinstance(data['identifier'],list) else data['identifier']
-    data['title'] = data['title'][0] if isinstance(data['title'],list) else data['title']
-    data['journal'] = data['pub'][0] if isinstance(data['pub'],list) else data['pub']
-    data['author'] = ['<b>{}</b>'.format(x) if 'Ginsburg' in x and not '<b>' in x else x for x in data['author']]
-    data['author'] = [x.replace("\\x","&#") for x in data['author']]
-    data['creator'] = u"; ".join(data['author'])
+
+def wrangle(data, authorname='Ginsburg'):
+    """ Create new fields from the input data to insert into the format string """
+
+    data['month'] = data['pubdate'][5:7]
+    
+    # Generally, the last identifier is the published version, 
+    # while the first is an arXiv identifier
+    # (data['identifier'] is a list)
+    data['adsbibid'] = data['identifier'][-1]
+
+    # data['title'] & ['pub'] are also lists
+    data['titlestring'] = data['title'][0]
+    data['journal'] = data['pub'][0]
+
+    # This trick bolds my name in the list of authors
+    data['authors'] = ['<b>{}</b>'.format(x) if authorname in x else x for x in data['author']]
+
+    # Separate names by semicolons
+    data['creator'] = u"; ".join(data['authors'])
+
     return data
+
 
 
 def write_html(author='ginsburg, a', outfile='generated.html', fmt=htmlfmtstr):
